@@ -1,12 +1,9 @@
 //
 // db_server.cpp: DbServer implementation
 //
-// Eli Bendersky (eliben@gmail.com)
-// This code is in the public domain
-//
 #include "db_server.h"
 #include "packedmessage.h"
-#include "stringdb.pb.h"
+#include "InfoPacket.pb.h"
 #include <cassert>
 #include <iostream>
 #include <map>
@@ -38,8 +35,8 @@ class DbConnection : public boost::enable_shared_from_this<DbConnection>
 {
 public:
     typedef boost::shared_ptr<DbConnection> Pointer;
-    typedef boost::shared_ptr<stringdb::Request> RequestPointer;
-    typedef boost::shared_ptr<stringdb::Response> ResponsePointer;
+    //typedef boost::shared_ptr<stringdb::Request> RequestPointer;
+    //typedef boost::shared_ptr<stringdb::Response> ResponsePointer;
 
     static Pointer create(asio::io_service& io_service, StringDatabase& db)
     {
@@ -60,11 +57,12 @@ private:
     tcp::socket m_socket;
     StringDatabase& m_db_ref;
     vector<uint8_t> m_readbuf;
-    PackedMessage<stringdb::Request> m_packed_request;
+    //PackedMessage<stringdb::Request> m_packed_request;
+    PackedMessage<Rdmp::InfoPacket> m_packed_request;
 
     DbConnection(asio::io_service& io_service, StringDatabase& db)
         : m_socket(io_service), m_db_ref(db),
-        m_packed_request(boost::shared_ptr<stringdb::Request>(new stringdb::Request()))
+        m_packed_request(boost::shared_ptr<Rdmp::InfoPacket>(new Rdmp::InfoPacket()))
     {
     }
     
@@ -74,9 +72,10 @@ private:
         if (!error) {
             DEBUG && (cerr << "Got header!\n");
             DEBUG && (cerr << show_hex(m_readbuf) << endl);
-            unsigned msg_len = m_packed_request.decode_header(m_readbuf);
-            DEBUG && (cerr << msg_len << " bytes\n");
-            start_read_body(msg_len);
+            //unsigned msg_len = m_packed_request.decode_header(m_readbuf);
+            //DEBUG && (cerr << msg_len << " bytes\n");
+            //start_read_body(msg_len);
+            m_packed_request.print_all_header(m_readbuf);
         }
     }
 
@@ -86,7 +85,8 @@ private:
         if (!error) {
             DEBUG && (cerr << "Got body!\n");
             DEBUG && (cerr << show_hex(m_readbuf) << endl);
-            handle_request();
+	    // TODO - realize it in another protofile
+            //handle_request(); 
             start_read_header();
         }
     }
@@ -95,6 +95,7 @@ private:
     // message. 
     // Parse the request, execute it and send back a response.
     //
+    /*
     void handle_request()
     {
         if (m_packed_request.unpack(m_readbuf)) {
@@ -107,10 +108,11 @@ private:
             asio::write(m_socket, asio::buffer(writebuf));
         }
     }
+    */
 
     void start_read_header()
     {
-        m_readbuf.resize(HEADER_SIZE);
+        m_readbuf.resize(ALL_HEADER_SIZE);
         asio::async_read(m_socket, asio::buffer(m_readbuf),
                 boost::bind(&DbConnection::handle_read_header, shared_from_this(),
                     asio::placeholders::error));
@@ -122,13 +124,14 @@ private:
         // bytes. Expand it to fit in the body as well, and start async
         // read into the body.
         //
-        m_readbuf.resize(HEADER_SIZE + msg_len);
-        asio::mutable_buffers_1 buf = asio::buffer(&m_readbuf[HEADER_SIZE], msg_len);
+        m_readbuf.resize(ALL_HEADER_SIZE + msg_len);
+        asio::mutable_buffers_1 buf = asio::buffer(&m_readbuf[ALL_HEADER_SIZE], msg_len);
         asio::async_read(m_socket, buf,
                 boost::bind(&DbConnection::handle_read_body, shared_from_this(),
                     asio::placeholders::error));
     }
 
+    /*
     ResponsePointer prepare_response(RequestPointer req)
     {
         string value;
@@ -159,8 +162,8 @@ private:
         resp->set_value(value);
         return resp;
     }
+*/
 };
-
 
 struct DbServer::DbServerImpl
 {
@@ -183,7 +186,6 @@ struct DbServer::DbServerImpl
             DbConnection::create(acceptor.get_io_service(), db);
 
         // Asynchronously wait to accept a new client
-        //
         acceptor.async_accept(new_connection->get_socket(),
             boost::bind(&DbServerImpl::handle_accept, this, new_connection,
                 asio::placeholders::error));

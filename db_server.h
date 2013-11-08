@@ -1,9 +1,6 @@
 //
 // db_server.h: DbServer interface
 //
-// Eli Bendersky (eliben@gmail.com)
-// This code is in the public domain
-//
 #ifndef DB_SERVER_H
 #define DB_SERVER_H
 

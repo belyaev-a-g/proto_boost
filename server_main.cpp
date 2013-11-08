@@ -1,9 +1,6 @@
 //
 // server_main.cpp: Main server implementation
 //
-// Eli Bendersky (eliben@gmail.com)
-// This code is in the public domain
-//
 #include <iostream>
 #include <string>
 #include <cstdio>

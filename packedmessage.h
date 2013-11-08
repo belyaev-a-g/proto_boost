@@ -1,9 +1,5 @@
-//
 // packedmessage.h: packaging of messages into length-prepended buffers
 // ready for transmission.
-//
-// Eli Bendersky (eliben@gmail.com)
-// This code is in the public domain
 //
 #ifndef PACKEDMESSAGE_H
 #define PACKEDMESSAGE_H
@@ -37,8 +33,11 @@ std::string show_hex(const CharContainer& c)
 
 
 // The header size for packed messages
-//
-const unsigned HEADER_SIZE = 4;
+const unsigned HEADER_SIZE = 4; // Old size of header
+const unsigned INFO_HEADER_SIZE = 4;
+const unsigned INFO_BINARY_SIZE = 8;
+const unsigned INFO_VERSION_SIZE = 2;
+const unsigned ALL_HEADER_SIZE = INFO_HEADER_SIZE + INFO_BINARY_SIZE + INFO_VERSION_SIZE;
 
 
 // PackedMessage implements simple "packing" of protocol buffers Messages into
@@ -79,7 +78,32 @@ public:
         encode_header(buf, msg_size);
         return m_msg->SerializeToArray(&buf[HEADER_SIZE], msg_size);
     }
-
+    
+    void print_all_header(const data_buffer& buf) const {
+      if (buf.size() < ALL_HEADER_SIZE) {
+	  std::cout<<"Buffer size is less than ALL_HEADER_SIZE"<<std::endl;
+	  std::cout<<"Buffer size is = "<<buf.size()<<std::endl;
+      }
+      else {
+	  std::cout<<"Buffer size is OK"<<std::endl;
+        unsigned info_size(0), binary_size(0), version_size(0);  // BAGERROR - данный тип данных должен вмещать в себя значение до 8-байт
+        for (unsigned i = 0; i < INFO_HEADER_SIZE; ++i)
+            info_size = info_size * 256 + (static_cast<unsigned>(buf[i]) & 0xFF);
+        std::cout<<"INFO_HEADER_SIZE = "<<info_size<<std::endl;
+        for (unsigned i = INFO_HEADER_SIZE; i < INFO_BINARY_SIZE + INFO_HEADER_SIZE; ++i)
+            binary_size = binary_size * 256 + (static_cast<unsigned>(buf[i]) & 0xFF);
+        std::cout<<"INFO_BINARY_SIZE = "<<binary_size<<std::endl;
+        for (unsigned i = INFO_BINARY_SIZE + INFO_HEADER_SIZE; i < ALL_HEADER_SIZE; ++i)
+            version_size = version_size * 256 + (static_cast<unsigned>(buf[i]) & 0xFF);
+        std::cout<<"INFO_VERSION_SIZE = "<<version_size<<std::endl;
+      }
+	
+      for(int j=0;j<buf.size();j++){
+	std::cout<<"buffer - "<<j<<" = "<< static_cast<unsigned>(buf[j])<<std::endl;
+      }
+    }
+    
+    
     // Given a buffer with the first HEADER_SIZE bytes representing the header,
     // decode the header and return the message length. Return 0 in case of 
     // an error.
@@ -100,6 +124,28 @@ public:
     bool unpack(const data_buffer& buf)
     {
         return m_msg->ParseFromArray(&buf[HEADER_SIZE], buf.size() - HEADER_SIZE);
+    }
+    
+    void encode_all_header(data_buffer& buf, unsigned infoSize, long long binarySize, unsigned versionSize) {
+      buf.empty();
+      // infoSize part of header
+      buf.push_back((infoSize >> 24)& 0xF);
+      buf.push_back((infoSize >> 16)& 0xF);
+      buf.push_back((infoSize >> 8)& 0xF);
+      buf.push_back((infoSize & 0xFF));
+      // binarySize part of header
+      buf.push_back((binarySize >> 56)& 0xF);
+      buf.push_back((binarySize >> 48)& 0xF);
+      buf.push_back((binarySize >> 40)& 0xF);
+      buf.push_back((binarySize >> 32)& 0xF);
+      buf.push_back((binarySize >> 24)& 0xF);
+      buf.push_back((binarySize >> 16)& 0xF);
+      buf.push_back((binarySize >> 8)& 0xF);
+      buf.push_back((binarySize & 0xFF));
+      // versionSize part of header
+      buf.push_back((versionSize >> 8)& 0xF);
+      buf.push_back((versionSize & 0xFF));
+    
     }
 private:
     // Encodes the side into a header at the beginning of buf
