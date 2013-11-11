@@ -2,10 +2,7 @@ package Rdmp;
 
 message InfoPacket
 {
-	required uint32 type = 1;
-	required uint32 id = 2;
-	optional bytes data = 3;
+    required uint32 type = 1;
+    required uint32 id = 2;
+    optional bytes data = 3;
 }
-
-
-

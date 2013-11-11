@@ -9,10 +9,11 @@
 #include <vector>
 #include <cstdio>
 #include <boost/shared_ptr.hpp>
-#include <boost/cstdint.hpp>
+//#include <boost/cstdint.hpp>
 
 
-typedef std::vector<boost::uint8_t> data_buffer;
+typedef std::vector<int8_t> data_buffer;
+//typedef std::vector<boost::uint8_t> data_buffer;
 
 
 // A generic function to show contents of a container holding byte data 
@@ -79,28 +80,31 @@ public:
         return m_msg->SerializeToArray(&buf[HEADER_SIZE], msg_size);
     }
     
-    void print_all_header(const data_buffer& buf) const {
+    unsigned int print_all_header(const data_buffer& buf) const {
       if (buf.size() < ALL_HEADER_SIZE) {
 	  std::cout<<"Buffer size is less than ALL_HEADER_SIZE"<<std::endl;
 	  std::cout<<"Buffer size is = "<<buf.size()<<std::endl;
+	  return 0;
       }
       else {
-	  std::cout<<"Buffer size is OK"<<std::endl;
-        unsigned info_size(0), binary_size(0), version_size(0);  // BAGERROR - данный тип данных должен вмещать в себя значение до 8-байт
-        for (unsigned i = 0; i < INFO_HEADER_SIZE; ++i)
+	std::cout<<"Buffer size is OK"<<std::endl;
+        unsigned int info_size(0), binary_size(0), version_size(0);  // BAGERROR - данный тип данных должен вмещать в себя значение до 8-байт
+        for (unsigned int i = 0; i < INFO_HEADER_SIZE; ++i)
             info_size = info_size * 256 + (static_cast<unsigned>(buf[i]) & 0xFF);
-        std::cout<<"INFO_HEADER_SIZE = "<<info_size<<std::endl;
-        for (unsigned i = INFO_HEADER_SIZE; i < INFO_BINARY_SIZE + INFO_HEADER_SIZE; ++i)
+        std::cout<<"INFO SIZE OF PROTO = "<<info_size<<std::endl;
+        for (unsigned int i = INFO_HEADER_SIZE; i < INFO_BINARY_SIZE + INFO_HEADER_SIZE; ++i)
             binary_size = binary_size * 256 + (static_cast<unsigned>(buf[i]) & 0xFF);
-        std::cout<<"INFO_BINARY_SIZE = "<<binary_size<<std::endl;
-        for (unsigned i = INFO_BINARY_SIZE + INFO_HEADER_SIZE; i < ALL_HEADER_SIZE; ++i)
+        std::cout<<"INFO SIZE BINARY ADDITION = "<<binary_size<<std::endl;
+        for (unsigned int i = INFO_BINARY_SIZE + INFO_HEADER_SIZE; i < ALL_HEADER_SIZE; ++i)
             version_size = version_size * 256 + (static_cast<unsigned>(buf[i]) & 0xFF);
-        std::cout<<"INFO_VERSION_SIZE = "<<version_size<<std::endl;
+        std::cout<<"INFO PROTOCOL VERSION = "<<version_size<<std::endl;
+	return info_size;
       }
-	
+    /*	
       for(int j=0;j<buf.size();j++){
 	std::cout<<"buffer - "<<j<<" = "<< static_cast<unsigned>(buf[j])<<std::endl;
       }
+      */
     }
     
     
@@ -126,24 +130,24 @@ public:
         return m_msg->ParseFromArray(&buf[HEADER_SIZE], buf.size() - HEADER_SIZE);
     }
     
-    void encode_all_header(data_buffer& buf, unsigned infoSize, long long binarySize, unsigned versionSize) {
+ void encode_all_header(data_buffer& buf, unsigned infoSize, long long binarySize, unsigned versionSize) {
       buf.empty();
       // infoSize part of header
-      buf.push_back((infoSize >> 24)& 0xF);
-      buf.push_back((infoSize >> 16)& 0xF);
-      buf.push_back((infoSize >> 8)& 0xF);
+      buf.push_back((infoSize >> 24)& 0xFF);
+      buf.push_back((infoSize >> 16)& 0xFF);
+      buf.push_back((infoSize >> 8)& 0xFF);
       buf.push_back((infoSize & 0xFF));
       // binarySize part of header
-      buf.push_back((binarySize >> 56)& 0xF);
-      buf.push_back((binarySize >> 48)& 0xF);
-      buf.push_back((binarySize >> 40)& 0xF);
-      buf.push_back((binarySize >> 32)& 0xF);
-      buf.push_back((binarySize >> 24)& 0xF);
-      buf.push_back((binarySize >> 16)& 0xF);
-      buf.push_back((binarySize >> 8)& 0xF);
+      buf.push_back((binarySize >> 56)& 0xFF);
+      buf.push_back((binarySize >> 48)& 0xFF);
+      buf.push_back((binarySize >> 40)& 0xFF);
+      buf.push_back((binarySize >> 32)& 0xFF);
+      buf.push_back((binarySize >> 24)& 0xFF);
+      buf.push_back((binarySize >> 16)& 0xFF);
+      buf.push_back((binarySize >> 8)& 0xFF);
       buf.push_back((binarySize & 0xFF));
       // versionSize part of header
-      buf.push_back((versionSize >> 8)& 0xF);
+      buf.push_back((versionSize >> 8)& 0xFF);
       buf.push_back((versionSize & 0xFF));
     
     }
@@ -153,10 +157,14 @@ private:
     void encode_header(data_buffer& buf, unsigned size) const
     {
         assert(buf.size() >= HEADER_SIZE);
-        buf[0] = static_cast<boost::uint8_t>((size >> 24) & 0xFF);
-        buf[1] = static_cast<boost::uint8_t>((size >> 16) & 0xFF);
-        buf[2] = static_cast<boost::uint8_t>((size >> 8) & 0xFF);
-        buf[3] = static_cast<boost::uint8_t>(size & 0xFF);
+        buf[0] = static_cast<int8_t>((size >> 24) & 0xFF);
+        buf[1] = static_cast<int8_t>((size >> 16) & 0xFF);
+        buf[2] = static_cast<int8_t>((size >> 8) & 0xFF);
+        buf[3] = static_cast<int8_t>(size & 0xFF);
+        //buf[0] = static_cast<boost::uint8_t>((size >> 24) & 0xFF);
+        //buf[1] = static_cast<boost::uint8_t>((size >> 16) & 0xFF);
+        //buf[2] = static_cast<boost::uint8_t>((size >> 8) & 0xFF);
+        //buf[3] = static_cast<boost::uint8_t>(size & 0xFF);
     }
 
     MessagePointer m_msg;

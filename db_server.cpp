@@ -13,19 +13,13 @@
 #include <boost/asio.hpp>
 #include <boost/bind.hpp>
 #include <boost/shared_ptr.hpp>
-#include <boost/cstdint.hpp>
+//#include <boost/cstdint.hpp>
 #include <boost/enable_shared_from_this.hpp>
-
-using namespace std;
-namespace asio = boost::asio;
-using asio::ip::tcp;
-using boost::uint8_t;
-
 
 #define DEBUG true
 
 
-typedef map<string, string> StringDatabase;
+typedef std::map<std::string, std::string> StringDatabase;
 
 
 // Database connection - handles a connection with a single client.
@@ -38,12 +32,12 @@ public:
     //typedef boost::shared_ptr<stringdb::Request> RequestPointer;
     //typedef boost::shared_ptr<stringdb::Response> ResponsePointer;
 
-    static Pointer create(asio::io_service& io_service, StringDatabase& db)
+    static Pointer create(boost::asio::io_service& io_service, StringDatabase& db)
     {
         return Pointer(new DbConnection(io_service, db));
     }
 
-    tcp::socket& get_socket()
+    boost::asio::ip::tcp::socket& get_socket()
     {
         return m_socket;
     }
@@ -54,13 +48,14 @@ public:
     }
 
 private:
-    tcp::socket m_socket;
+    boost::asio::ip::tcp::socket m_socket;
     StringDatabase& m_db_ref;
-    vector<uint8_t> m_readbuf;
+    std::vector<int8_t> m_readbuf;
+    //vector<uint8_t> m_readbuf;
     //PackedMessage<stringdb::Request> m_packed_request;
     PackedMessage<Rdmp::InfoPacket> m_packed_request;
 
-    DbConnection(asio::io_service& io_service, StringDatabase& db)
+    DbConnection(boost::asio::io_service& io_service, StringDatabase& db)
         : m_socket(io_service), m_db_ref(db),
         m_packed_request(boost::shared_ptr<Rdmp::InfoPacket>(new Rdmp::InfoPacket()))
     {
@@ -68,28 +63,56 @@ private:
     
     void handle_read_header(const boost::system::error_code& error)
     {
-        DEBUG && (cerr << "handle read " << error.message() << '\n');
+        DEBUG && (std::cerr << "handle read " << error.message() << '\n');
         if (!error) {
-            DEBUG && (cerr << "Got header!\n");
-            DEBUG && (cerr << show_hex(m_readbuf) << endl);
+            DEBUG && (std::cerr << "Got header!\n");
+            DEBUG && (std::cerr << show_hex(m_readbuf) << std::endl);
             //unsigned msg_len = m_packed_request.decode_header(m_readbuf);
             //DEBUG && (cerr << msg_len << " bytes\n");
             //start_read_body(msg_len);
-            m_packed_request.print_all_header(m_readbuf);
+            unsigned int proto_len = m_packed_request.print_all_header(m_readbuf);
+	    std::cout<<"Length of Proto = "<<proto_len<<std::endl;
+            start_read_proto_body(proto_len);
         }
     }
 
     void handle_read_body(const boost::system::error_code& error)
     {
-        DEBUG && (cerr << "handle body " << error << '\n');
+        DEBUG && (std::cerr << "handle body " << error << '\n');
         if (!error) {
-            DEBUG && (cerr << "Got body!\n");
-            DEBUG && (cerr << show_hex(m_readbuf) << endl);
+            DEBUG && (std::cerr << "Got body!\n");
+            DEBUG && (std::cerr << show_hex(m_readbuf) << std::endl);
 	    // TODO - realize it in another protofile
             //handle_request(); 
             start_read_header();
         }
     }
+    
+    void handle_read_proto(const boost::system::error_code& error)
+    {
+        DEBUG && (std::cerr << "handle read proto " << error << '\n');
+        if (!error) {
+            DEBUG && (std::cerr << "Got body!\n");
+            DEBUG && (std::cerr << show_hex(m_readbuf) << std::endl);
+	    // TODO - realize it in another protofile
+	    std::cout<<"Parse Proto "<<std::endl;
+	    // PARSE m_readbuf - to Proto
+	    Rdmp::InfoPacket* infoPckt2 = new Rdmp::InfoPacket();
+	    if(infoPckt2->ParseFromArray(&m_readbuf[ALL_HEADER_SIZE], m_readbuf.size() - ALL_HEADER_SIZE)) {
+	      std::cout<<"Parse OK"<<std::endl;
+	      std::cout<<"TYPE = "<<infoPckt2->type()<<std::endl;
+	      std::cout<<"ID = "<<infoPckt2->id()<<std::endl;
+	    }
+	    else
+	      std::cout<<"Parse NOT OK"<<std::endl;
+	    
+	    
+            //handle_request(); 
+            start_read_header();
+        }
+        else
+	    std::cout<<"ERROR before Parse Proto "<<std::endl;
+    } 
 
     // Called when enough data was read into m_readbuf for a complete request
     // message. 
@@ -113,9 +136,9 @@ private:
     void start_read_header()
     {
         m_readbuf.resize(ALL_HEADER_SIZE);
-        asio::async_read(m_socket, asio::buffer(m_readbuf),
+        boost::asio::async_read(m_socket, boost::asio::buffer(m_readbuf),
                 boost::bind(&DbConnection::handle_read_header, shared_from_this(),
-                    asio::placeholders::error));
+                    boost::asio::placeholders::error));
     }
 
     void start_read_body(unsigned msg_len)
@@ -125,10 +148,19 @@ private:
         // read into the body.
         //
         m_readbuf.resize(ALL_HEADER_SIZE + msg_len);
-        asio::mutable_buffers_1 buf = asio::buffer(&m_readbuf[ALL_HEADER_SIZE], msg_len);
-        asio::async_read(m_socket, buf,
+        boost::asio::mutable_buffers_1 buf = boost::asio::buffer(&m_readbuf[ALL_HEADER_SIZE], msg_len);
+        boost::asio::async_read(m_socket, buf,
                 boost::bind(&DbConnection::handle_read_body, shared_from_this(),
-                    asio::placeholders::error));
+                    boost::asio::placeholders::error));
+    }
+
+    void start_read_proto_body(unsigned msg_len)
+    {
+        m_readbuf.resize(ALL_HEADER_SIZE + msg_len);
+        boost::asio::mutable_buffers_1 buf = boost::asio::buffer(&m_readbuf[ALL_HEADER_SIZE], msg_len);
+        boost::asio::async_read(m_socket, buf,
+                boost::bind(&DbConnection::handle_read_proto, shared_from_this(),
+                    boost::asio::placeholders::error));
     }
 
     /*
@@ -167,11 +199,11 @@ private:
 
 struct DbServer::DbServerImpl
 {
-    tcp::acceptor acceptor;
+    boost::asio::ip::tcp::acceptor acceptor;
     StringDatabase db;
 
-    DbServerImpl(asio::io_service& io_service, unsigned port)
-        : acceptor(io_service, tcp::endpoint(tcp::v4(), port))
+    DbServerImpl(boost::asio::io_service& io_service, unsigned port)
+        : acceptor(io_service,boost::asio::ip::tcp::endpoint( boost::asio::ip::tcp::v4(), port))
     {
         start_accept();
     }
@@ -188,7 +220,7 @@ struct DbServer::DbServerImpl
         // Asynchronously wait to accept a new client
         acceptor.async_accept(new_connection->get_socket(),
             boost::bind(&DbServerImpl::handle_accept, this, new_connection,
-                asio::placeholders::error));
+                boost::asio::placeholders::error));
     }
 
     void handle_accept(DbConnection::Pointer connection,
@@ -209,7 +241,7 @@ struct DbServer::DbServerImpl
 };
 
 
-DbServer::DbServer(asio::io_service& io_service, unsigned port)
+DbServer::DbServer(boost::asio::io_service& io_service, unsigned port)
     : d(new DbServerImpl(io_service, port))
 {
 }
