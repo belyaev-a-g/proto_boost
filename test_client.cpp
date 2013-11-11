@@ -12,29 +12,6 @@ using boost::asio::ip::tcp;
 
 enum { max_length = 1024 };
 
- void encode_all_header2(data_buffer& buf, unsigned infoSize, long long binarySize, unsigned versionSize) {
-      buf.empty();
-      // infoSize part of header
-      buf.push_back((infoSize >> 24)& 0xFF);
-      buf.push_back((infoSize >> 16)& 0xFF);
-      buf.push_back((infoSize >> 8)& 0xFF);
-      buf.push_back((infoSize & 0xFF));
-      // binarySize part of header
-      buf.push_back((binarySize >> 56)& 0xFF);
-      buf.push_back((binarySize >> 48)& 0xFF);
-      buf.push_back((binarySize >> 40)& 0xFF);
-      buf.push_back((binarySize >> 32)& 0xFF);
-      buf.push_back((binarySize >> 24)& 0xFF);
-      buf.push_back((binarySize >> 16)& 0xFF);
-      buf.push_back((binarySize >> 8)& 0xFF);
-      buf.push_back((binarySize & 0xFF));
-      // versionSize part of header
-      buf.push_back((versionSize >> 8)& 0xFF);
-      buf.push_back((versionSize & 0xFF));
-    
-    }
-
-
 int main(int argc, char* argv[])
 {
   try
@@ -70,45 +47,27 @@ int main(int argc, char* argv[])
     std::cout << "Enter version of protocol"<<std::endl;
     std::cin>>protoVersion;
     
-    Rdmp::InfoPacket* infoPckt = new Rdmp::InfoPacket();
-    infoPckt->set_id(protoId);
-    infoPckt->set_type(protoType);
-    infoPckt->set_data(protoData);
-    int msg_size = infoPckt->ByteSize();
-    std::cout<<"Size of proto array = "<<msg_size<<std::endl;
-    /*
-    std::vector<int8_t> buffer;
-    // Put info about size of proto into the header ( first 4 bytes)
-    buffer.push_back((msg_size >> 24)& 0xF);
-    buffer.push_back((msg_size >> 16)& 0xF);
-    buffer.push_back((msg_size >> 8)& 0xF);
-    buffer.push_back((msg_size & 0xFF));
-    
-      
-    buffer.resize(ALL_HEADER_SIZE-1); // Некрасивый ход
-    buffer.push_back( 0x05); // Добавим версию - 5
-    std::cout << "Try to send Proto: "<<std::endl;
-    */
-    /*boost::asio::write(s, boost::asio::buffer(buffer,ALL_HEADER_SIZE));
-    for(int i=0;i<buffer.size();i++){
-	std::cout<<"buffer - "<<i<<" = "<< static_cast<unsigned>(buffer[i])<<std::endl;
-      }
-      */
-    
     data_buffer buf2;
-    encode_all_header2(buf2,msg_size,sizeOfBlob,protoVersion);
+    
+    PackedMessage<Rdmp::InfoPacket> m_packed_request(boost::shared_ptr<Rdmp::InfoPacket>(new Rdmp::InfoPacket()));
+    m_packed_request.get_msg()->set_id(protoId);
+    m_packed_request.get_msg()->set_type(protoType);
+    m_packed_request.get_msg()->set_data(protoData);
+    int msg_size = m_packed_request.get_msg()->ByteSize();
+    m_packed_request.encode_all_header(buf2,msg_size,sizeOfBlob,protoVersion);
+    
+    std::cout<<"Size of proto array = "<<msg_size<<std::endl;
     buf2.resize(ALL_HEADER_SIZE + msg_size);
-    if(infoPckt->SerializeToArray(&buf2[ALL_HEADER_SIZE], msg_size))
+    if(m_packed_request.get_msg()->SerializeToArray(&buf2[ALL_HEADER_SIZE], msg_size))
       std::cout << "SerializeToArray OK"<<std::endl;
     else
       std::cout << "SerializeToArray NOT OK"<<std::endl;
     std::cout << "Try to send Proto2: "<<std::endl;
     boost::asio::write(s, boost::asio::buffer(buf2,ALL_HEADER_SIZE + msg_size));
-    //boost::asio::write(s, boost::asio::buffer(buf2,ALL_HEADER_SIZE));
+    
     for(int i=0;i<buf2.size();i++){
 	std::cout<<"buf2 - "<<i<<" = "<< static_cast<unsigned>(buf2[i])<<std::endl;
       }
-    
     // Second call of writing - working too :)
     //boost::asio::write(s, boost::asio::buffer(buf2,ALL_HEADER_SIZE + msg_size));
     /* Reply - not used now 
