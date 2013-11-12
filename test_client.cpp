@@ -63,10 +63,21 @@ int main(int argc, char* argv[])
       std::cout << "SerializeToArray NOT OK"<<std::endl;
     std::cout << "Try to send Proto2: "<<std::endl;
     boost::asio::write(s, boost::asio::buffer(buf2,ALL_HEADER_SIZE + msg_size));
-    
+   /* 
     for(int i=0;i<buf2.size();i++){
 	std::cout<<"buf2 - "<<i<<" = "<< static_cast<unsigned>(buf2[i])<<std::endl;
       }
+     */ 
+     if(sizeOfBlob) {
+       std::cout<<"Send BLOB with size = "<<sizeOfBlob<<std::endl;
+       char * blobData = new char[sizeOfBlob];
+       memset(blobData,'q',sizeOfBlob);
+       boost::system::error_code ec;
+       size_t sendedLength = boost::asio::write(s, boost::asio::buffer(blobData, sizeOfBlob),
+						boost::asio::transfer_all(), ec);
+      std::cout<<"BLOB data sended =  "<<sendedLength<<std::endl;
+       
+     }
     // Second call of writing - working too :)
     //boost::asio::write(s, boost::asio::buffer(buf2,ALL_HEADER_SIZE + msg_size));
     /* Reply - not used now 

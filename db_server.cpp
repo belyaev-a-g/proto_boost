@@ -22,6 +22,7 @@
 typedef std::map<std::string, std::string> StringDatabase;
 
 
+
 // Database connection - handles a connection with a single client.
 // Create only through the DbConnection::create factory.
 //
@@ -51,8 +52,6 @@ private:
     boost::asio::ip::tcp::socket m_socket;
     StringDatabase& m_db_ref;
     std::vector<int8_t> m_readbuf;
-    //vector<uint8_t> m_readbuf;
-    //PackedMessage<stringdb::Request> m_packed_request;
     PackedMessage<Rdmp::InfoPacket> m_packed_request;
 
     DbConnection(boost::asio::io_service& io_service, StringDatabase& db)
@@ -70,7 +69,13 @@ private:
             //unsigned msg_len = m_packed_request.decode_header(m_readbuf);
             //DEBUG && (cerr << msg_len << " bytes\n");
             //start_read_body(msg_len);
-            unsigned int proto_len = m_packed_request.print_all_header(m_readbuf);
+	    
+	    
+	    PacketHeaderInfo currentPcktHeaderInfo{0,0,0};
+	    m_packed_request.getPacketHeaderInfo(m_readbuf, currentPcktHeaderInfo);
+	    
+            //unsigned int proto_len = m_packed_request.print_all_header(m_readbuf);
+            unsigned int proto_len = currentPcktHeaderInfo.protoSize;
 	    std::cout<<"Length of Proto = "<<proto_len<<std::endl;
             start_read_proto_body(proto_len);
         }

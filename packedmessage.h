@@ -9,12 +9,16 @@
 #include <vector>
 #include <cstdio>
 #include <boost/shared_ptr.hpp>
-//#include <boost/cstdint.hpp>
 
 
 typedef std::vector<int8_t> data_buffer;
-//typedef std::vector<boost::uint8_t> data_buffer;
 
+// This struct contain all Header info
+struct PacketHeaderInfo {
+  unsigned protoSize;
+  long long binarySize;
+  unsigned protocolVersion; 
+};
 
 // A generic function to show contents of a container holding byte data 
 // as a string with hex representation for each byte.
@@ -88,17 +92,44 @@ public:
       }
       else {
 	std::cout<<"Buffer size is OK"<<std::endl;
-        unsigned int info_size(0), binary_size(0), version_size(0);  // BAGERROR - данный тип данных должен вмещать в себя значение до 8-байт
+	PacketHeaderInfo tmpHeaderInfo{0,0,0};
         for (unsigned int i = 0; i < INFO_HEADER_SIZE; ++i)
-            info_size = info_size * 256 + (static_cast<unsigned>(buf[i]) & 0xFF);
-        std::cout<<"INFO SIZE OF PROTO = "<<info_size<<std::endl;
+            tmpHeaderInfo.protoSize = tmpHeaderInfo.protoSize * 256 + (static_cast<unsigned>(buf[i]) & 0xFF);
+        std::cout<<"INFO SIZE OF PROTO = "<<tmpHeaderInfo.protoSize<<std::endl;
         for (unsigned int i = INFO_HEADER_SIZE; i < INFO_BINARY_SIZE + INFO_HEADER_SIZE; ++i)
-            binary_size = binary_size * 256 + (static_cast<unsigned>(buf[i]) & 0xFF);
-        std::cout<<"INFO SIZE BINARY ADDITION = "<<binary_size<<std::endl;
+            tmpHeaderInfo.binarySize = tmpHeaderInfo.binarySize * 256 + (static_cast<unsigned>(buf[i]) & 0xFF);
+        std::cout<<"INFO SIZE OF BINARY ADDITION = "<<tmpHeaderInfo.binarySize<<std::endl;
         for (unsigned int i = INFO_BINARY_SIZE + INFO_HEADER_SIZE; i < ALL_HEADER_SIZE; ++i)
-            version_size = version_size * 256 + (static_cast<unsigned>(buf[i]) & 0xFF);
-        std::cout<<"INFO PROTOCOL VERSION = "<<version_size<<std::endl;
-	return info_size;
+            tmpHeaderInfo.protocolVersion = tmpHeaderInfo.protocolVersion * 256 + (static_cast<unsigned>(buf[i]) & 0xFF);
+        std::cout<<"INFO PROTOCOL VERSION = "<<tmpHeaderInfo.protocolVersion<<std::endl;
+	return tmpHeaderInfo.protoSize;
+      }
+    /*	
+      for(int j=0;j<buf.size();j++){
+	std::cout<<"buffer - "<<j<<" = "<< static_cast<unsigned>(buf[j])<<std::endl;
+      }
+      */
+    }
+    
+    void getPacketHeaderInfo(const data_buffer& buf, PacketHeaderInfo& tmpHeaderInfo) const {
+	tmpHeaderInfo.binarySize = 0;
+	tmpHeaderInfo.protocolVersion = 0;
+	tmpHeaderInfo.protoSize = 0;
+      if (buf.size() < ALL_HEADER_SIZE) {
+	  std::cout<<"Buffer size is less than ALL_HEADER_SIZE"<<std::endl;
+	  std::cout<<"Buffer size is = "<<buf.size()<<std::endl;
+      }
+      else {
+	std::cout<<"Buffer size is OK"<<std::endl;
+        for (unsigned int i = 0; i < INFO_HEADER_SIZE; ++i)
+            tmpHeaderInfo.protoSize = tmpHeaderInfo.protoSize * 256 + (static_cast<unsigned>(buf[i]) & 0xFF);
+        std::cout<<"INFO SIZE OF PROTO = "<<tmpHeaderInfo.protoSize<<std::endl;
+        for (unsigned int i = INFO_HEADER_SIZE; i < INFO_BINARY_SIZE + INFO_HEADER_SIZE; ++i)
+            tmpHeaderInfo.binarySize = tmpHeaderInfo.binarySize * 256 + (static_cast<unsigned>(buf[i]) & 0xFF);
+        std::cout<<"INFO SIZE OF BINARY ADDITION = "<<tmpHeaderInfo.binarySize<<std::endl;
+        for (unsigned int i = INFO_BINARY_SIZE + INFO_HEADER_SIZE; i < ALL_HEADER_SIZE; ++i)
+            tmpHeaderInfo.protocolVersion = tmpHeaderInfo.protocolVersion * 256 + (static_cast<unsigned>(buf[i]) & 0xFF);
+        std::cout<<"INFO PROTOCOL VERSION = "<<tmpHeaderInfo.protocolVersion<<std::endl;
       }
     /*	
       for(int j=0;j<buf.size();j++){
