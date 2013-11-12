@@ -13,7 +13,6 @@
 #include <boost/asio.hpp>
 #include <boost/bind.hpp>
 #include <boost/shared_ptr.hpp>
-//#include <boost/cstdint.hpp>
 #include <boost/enable_shared_from_this.hpp>
 
 #define DEBUG true
@@ -30,8 +29,6 @@ class DbConnection : public boost::enable_shared_from_this<DbConnection>
 {
 public:
     typedef boost::shared_ptr<DbConnection> Pointer;
-    //typedef boost::shared_ptr<stringdb::Request> RequestPointer;
-    //typedef boost::shared_ptr<stringdb::Response> ResponsePointer;
 
     static Pointer create(boost::asio::io_service& io_service, StringDatabase& db)
     {
@@ -53,10 +50,11 @@ private:
     StringDatabase& m_db_ref;
     std::vector<int8_t> m_readbuf;
     PackedMessage<Rdmp::InfoPacket> m_packed_request;
+    PacketHeaderInfo currentPcktHeaderInfo;
 
     DbConnection(boost::asio::io_service& io_service, StringDatabase& db)
         : m_socket(io_service), m_db_ref(db),
-        m_packed_request(boost::shared_ptr<Rdmp::InfoPacket>(new Rdmp::InfoPacket()))
+        m_packed_request(boost::shared_ptr<Rdmp::InfoPacket>(new Rdmp::InfoPacket())), currentPcktHeaderInfo({0,0,0})
     {
     }
     
@@ -69,15 +67,9 @@ private:
             //unsigned msg_len = m_packed_request.decode_header(m_readbuf);
             //DEBUG && (cerr << msg_len << " bytes\n");
             //start_read_body(msg_len);
-	    
-	    
-	    PacketHeaderInfo currentPcktHeaderInfo{0,0,0};
+	    //PacketHeaderInfo currentPcktHeaderInfo{0,0,0};
 	    m_packed_request.getPacketHeaderInfo(m_readbuf, currentPcktHeaderInfo);
-	    
-            //unsigned int proto_len = m_packed_request.print_all_header(m_readbuf);
-            unsigned int proto_len = currentPcktHeaderInfo.protoSize;
-	    std::cout<<"Length of Proto = "<<proto_len<<std::endl;
-            start_read_proto_body(proto_len);
+            start_read_proto_body(currentPcktHeaderInfo.protoSize);
         }
     }
 
@@ -91,6 +83,11 @@ private:
             //handle_request(); 
             start_read_header();
         }
+    }
+    
+     void handle_read_binary(const boost::system::error_code& error)
+    {
+      std::cout<<"Binary chunk dropped"<<std::endl;
     }
     
     void handle_read_proto(const boost::system::error_code& error)
@@ -113,7 +110,19 @@ private:
 	    
 	    
             //handle_request(); 
-            start_read_header();
+	    if(currentPcktHeaderInfo.binarySize) {
+	      std::cout<<"Read binary chunk"<<std::endl;
+	      std::vector<int8_t> bin_chunk;
+	      bin_chunk.resize(currentPcktHeaderInfo.binarySize);
+	      boost::asio::async_read(m_socket, boost::asio::buffer(bin_chunk),
+                boost::bind(&DbConnection::handle_read_binary, shared_from_this(),
+                    boost::asio::placeholders::error));
+	      
+	      start_read_header();
+	    }
+	    else {
+	      start_read_header();
+	    }
         }
         else
 	    std::cout<<"ERROR before Parse Proto "<<std::endl;

@@ -79,7 +79,7 @@ int main(int argc, char* argv[])
        
      }
     // Second call of writing - working too :)
-    //boost::asio::write(s, boost::asio::buffer(buf2,ALL_HEADER_SIZE + msg_size));
+    boost::asio::write(s, boost::asio::buffer(buf2,ALL_HEADER_SIZE + msg_size));
     /* Reply - not used now 
     char reply[max_length];
     size_t reply_length = boost::asio::read(s, boost::asio::buffer(reply, request_length));
