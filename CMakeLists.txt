@@ -9,11 +9,13 @@ project(test_client_TCP CXX C)
 
 cmake_minimum_required(VERSION 2.8)
 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -std=c++11")
+
 include(FindProtobuf)
 find_package( Protobuf REQUIRED )
 
 # Debugging BOOST
-ADD_DEFINITIONS( -DBOOST_ASIO_ENABLE_HANDLER_TRACKING)
+add_definitions( -DBOOST_ASIO_ENABLE_HANDLER_TRACKING)
 
 
 #protobuf compiler

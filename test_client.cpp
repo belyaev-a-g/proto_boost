@@ -8,7 +8,6 @@
 #include "InfoPacket.pb.h"
 #include "packedmessage.h"
 
-using boost::asio::ip::tcp;
 
 enum { max_length = 1024 };
 
@@ -24,11 +23,11 @@ int main(int argc, char* argv[])
 
     boost::asio::io_service io_service;
 
-    tcp::resolver resolver(io_service);
-    tcp::resolver::query query(tcp::v4(), argv[1], argv[2]);
-    tcp::resolver::iterator iterator = resolver.resolve(query);
+    boost::asio::ip::tcp::resolver resolver(io_service);
+    boost::asio::ip::tcp::resolver::query query(boost::asio::ip::tcp::v4(), argv[1], argv[2]);
+    boost::asio::ip::tcp::resolver::iterator iterator = resolver.resolve(query);
 
-    tcp::socket s(io_service);
+    boost::asio::ip::tcp::socket s(io_service);
     boost::asio::connect(s, iterator);
 
     // Create and fill our protofile
