@@ -48,7 +48,7 @@ public:
 private:
     boost::asio::ip::tcp::socket m_socket;
     StringDatabase& m_db_ref;
-    std::vector<int8_t> m_readbuf;
+    std::vector<uint8_t> m_readbuf;
     PackedMessage<Rdmp::InfoPacket> m_packed_request;
     PacketHeaderInfo currentPcktHeaderInfo;
 
@@ -85,9 +85,10 @@ private:
         }
     }
     
-     void handle_read_binary(const boost::system::error_code& error)
+     void handle_read_binary(const boost::system::error_code& error, uint32_t idPckt)
     {
       std::cout<<"Binary chunk dropped"<<std::endl;
+      send_proto_confirmation( idPckt);
     }
     
     void handle_read_proto(const boost::system::error_code& error)
@@ -96,7 +97,6 @@ private:
         if (!error) {
             DEBUG && (std::cerr << "Got body!\n");
             DEBUG && (std::cerr << show_hex(m_readbuf) << std::endl);
-	    // TODO - realize it in another protofile
 	    std::cout<<"Parse Proto "<<std::endl;
 	    // PARSE m_readbuf - to Proto
 	    Rdmp::InfoPacket* infoPckt2 = new Rdmp::InfoPacket();
@@ -116,12 +116,13 @@ private:
 	      bin_chunk.resize(currentPcktHeaderInfo.binarySize);
 	      boost::asio::async_read(m_socket, boost::asio::buffer(bin_chunk),
                 boost::bind(&DbConnection::handle_read_binary, shared_from_this(),
-                    boost::asio::placeholders::error));
+                    boost::asio::placeholders::error, infoPckt2->id()));
 	      
-	      start_read_header();
+	      //start_read_header();
 	    }
 	    else {
-	      start_read_header();
+	      send_proto_confirmation( infoPckt2->id());
+	      //start_read_header();
 	    }
         }
         else
@@ -147,6 +148,17 @@ private:
     }
     */
 
+    void send_proto_confirmation(uint32_t idPckt)
+    {
+      std::cout<<" I answer for pckt with id = "<<idPckt<<std::endl;
+      data_buffer confirmBuf;
+      PackedMessage<Rdmp::InfoPacket> confirmPckt(boost::shared_ptr<Rdmp::InfoPacket>(new Rdmp::InfoPacket()));
+      auto packResult = confirmPckt.packConfirm(confirmBuf,idPckt);
+      auto result = boost::asio::write(m_socket, boost::asio::buffer(confirmBuf));
+      std::cout<<"Result of sending = "<<result<<std::endl;
+      start_read_header();
+    } 
+    
     void start_read_header()
     {
         m_readbuf.resize(ALL_HEADER_SIZE);

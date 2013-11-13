@@ -9,9 +9,10 @@
 #include <vector>
 #include <cstdio>
 #include <boost/shared_ptr.hpp>
+#include <InfoPacket.pb.h>
 
 
-typedef std::vector<int8_t> data_buffer;
+typedef std::vector<uint8_t> data_buffer;
 
 // This struct contain all Header info
 struct PacketHeaderInfo {
@@ -82,6 +83,24 @@ public:
         buf.resize(HEADER_SIZE + msg_size);
         encode_header(buf, msg_size);
         return m_msg->SerializeToArray(&buf[HEADER_SIZE], msg_size);
+    }
+    
+    bool packConfirm(data_buffer& buf, uint32_t idPckt) const
+    {
+        if (!m_msg)
+            return false;
+	m_msg.get()->set_id(idPckt);
+	m_msg.get()->set_type(1); // FIXME change magic number
+	m_msg.get()->clear_data();
+        unsigned msg_size = m_msg->ByteSize();
+	std::cout<<"Size of packConfirm = "<<msg_size<<std::endl;
+        encode_all_header(buf, msg_size,0,1); //FIXME magic
+	std::cout<<"Print buf before sending"<<std::endl;
+	print_all_header(buf);
+        buf.resize(ALL_HEADER_SIZE + msg_size);
+        //encode_header(buf, msg_size);
+        //return m_msg->SerializeToArray(&buf[ALL_HEADER_SIZE], msg_size);
+        return m_msg.get()->SerializeToArray(&buf[ALL_HEADER_SIZE], msg_size);
     }
     
     unsigned int print_all_header(const data_buffer& buf) const {
@@ -161,7 +180,7 @@ public:
         return m_msg->ParseFromArray(&buf[HEADER_SIZE], buf.size() - HEADER_SIZE);
     }
     
- void encode_all_header(data_buffer& buf, unsigned infoSize, long long binarySize, unsigned versionSize) {
+ void encode_all_header(data_buffer& buf, unsigned infoSize, long long binarySize, unsigned versionSize) const {
       buf.empty();
       // infoSize part of header
       buf.push_back((infoSize >> 24)& 0xFF);

@@ -11,6 +11,10 @@
 
 enum { max_length = 1024 };
 
+     
+
+
+
 int main(int argc, char* argv[])
 {
   try
@@ -79,15 +83,39 @@ int main(int argc, char* argv[])
        
      }
     // Second call of writing - working too :)
-    boost::asio::write(s, boost::asio::buffer(buf2,ALL_HEADER_SIZE + msg_size));
-    /* Reply - not used now 
+    //boost::asio::write(s, boost::asio::buffer(buf2,ALL_HEADER_SIZE + msg_size));
+    
+    
+    //Time to read answer from server - our proto
+    /* Reply - not used now */
+    std::vector<uint8_t> m_readbuf;
+    PacketHeaderInfo receivedPcktHeaderInfo;
+    std::cout<<"We wait answer now"<<std::endl;
     char reply[max_length];
-    size_t reply_length = boost::asio::read(s, boost::asio::buffer(reply, request_length));
+    m_readbuf.resize(ALL_HEADER_SIZE);
+    size_t reply_length = boost::asio::read(s, boost::asio::buffer(m_readbuf, ALL_HEADER_SIZE));
     std::cout << "Reply length = "<<reply_length<<std::endl;
-    std::cout << "Reply is: ";
-    std::cout.write(reply, reply_length);
-    std::cout << "\n";
-    */
+    PackedMessage<Rdmp::InfoPacket> receivedPckt(boost::shared_ptr<Rdmp::InfoPacket>(new Rdmp::InfoPacket()));
+    receivedPckt.getPacketHeaderInfo(m_readbuf, receivedPcktHeaderInfo);
+    // Read body of proto
+    {
+      std::vector<uint8_t> m_readproto;
+       m_readproto.resize(receivedPcktHeaderInfo.protoSize);
+       size_t reply_lengthi2 = boost::asio::read(s, boost::asio::buffer(m_readproto, receivedPcktHeaderInfo.protoSize));
+       std::cout << "Reply proto = "<<reply_lengthi2<<std::endl;
+       std::cout << "m_readproto.size  = "<<m_readproto.size()<<std::endl;
+       std::cout<<"Parse Proto "<<std::endl;
+	    // PARSE m_readbuf - to Proto
+	    Rdmp::InfoPacket* infoPckt2 = new Rdmp::InfoPacket();
+	    if(infoPckt2->ParseFromArray(&m_readproto[0], m_readproto.size())) {
+	      std::cout<<"Parse OK"<<std::endl;
+	      std::cout<<"TYPE = "<<infoPckt2->type()<<std::endl;
+	      std::cout<<"ID = "<<infoPckt2->id()<<std::endl;
+	    }
+	    else
+	      std::cout<<"Parse NOT OK"<<std::endl;
+	    
+    }
     
   }
   catch (std::exception& e)
