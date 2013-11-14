@@ -60,7 +60,7 @@ private:
     
     void handle_read_header(const boost::system::error_code& error)
     {
-        DEBUG && (std::cerr << "handle read " << error.message() << '\n');
+        DEBUG && (std::cerr << "handle read_header error =  " << error.message() << '\n');
         if (!error) {
             DEBUG && (std::cerr << "Got header!\n");
             DEBUG && (std::cerr << show_hex(m_readbuf) << std::endl);
@@ -91,6 +91,93 @@ private:
       send_proto_confirmation( idPckt);
     }
     
+  void handle_read_binaries_parts(const boost::system::error_code& error,
+      uint32_t bytes_to_receive, uint32_t idPckt , uint32_t bytes_transferred)
+  {
+    if (!error)
+    {
+      std::cout<<"handle_read_binaries_parts"<<std::endl;
+      std::cout<<"Обработчик сессии - bytes_to_receive = "<<bytes_to_receive<<std::endl;
+      
+      data_buffer bin_chunk2;
+      //FIXME - magic number
+      if(bytes_to_receive >= 1024 ) {
+	m_socket.async_read_some(boost::asio::buffer(bin_chunk2, 1024),
+	 boost::bind(&DbConnection::handle_read_binaries_parts, shared_from_this(),
+	 boost::asio::placeholders::error,bytes_to_receive - 1024, idPckt, boost::asio::placeholders::bytes_transferred));
+      }
+      else {
+	if(bytes_to_receive) {
+	  m_socket.async_read_some(boost::asio::buffer(bin_chunk2, bytes_to_receive),
+	 boost::bind(&DbConnection::handle_read_binaries_parts, shared_from_this(),
+	 boost::asio::placeholders::error,0, idPckt, boost::asio::placeholders::bytes_transferred));
+	}
+      }
+      
+      if(bytes_to_receive == 0) {
+	std::cout<<"Binary chunk dropped"<<std::endl;
+	send_proto_confirmation( idPckt);
+      }
+    }
+    else
+    {
+      std::cerr<<"ERROR!!! handle_read_binaries_parts "<<std::endl;
+      std::cout<<"Error = "<<error.message();
+      std::cerr<<"ERROR!!! handle_read_binaries_parts "<<std::endl;
+      //delete this; // BUGFIX - i don't know need delete it or not!
+    }
+  }
+ 
+   
+  void handle_read_binaries_parts_async(const boost::system::error_code& error,
+      uint32_t bytes_to_receive, uint32_t idPckt , uint32_t bytes_transferred)
+  {
+    if (!error)
+    {
+      std::cout<<"handle_read_binaries_parts_async"<<std::endl;
+      std::cout<<"Обработчик сессии - bytes_to_receive = "<<bytes_to_receive<<std::endl;
+      
+      data_buffer bin_chunk2(1024);
+      //bin_chunk2.resize(1024);
+      //FIXME - magic number
+      if(bytes_to_receive >= 1024 ) {
+	boost::asio::mutable_buffers_1 buf = boost::asio::buffer(&bin_chunk2[0], 1024);
+	boost::asio::async_read(m_socket, buf,boost::bind(&DbConnection::handle_read_binaries_parts_async, shared_from_this(),
+	 boost::asio::placeholders::error,bytes_to_receive - 1024, idPckt, boost::asio::placeholders::bytes_transferred));
+      }
+      else {	
+	/*
+	if(bytes_to_receive) {
+	  bin_chunk2.resize(bytes_to_receive);
+	boost::asio::mutable_buffers_1 buf = boost::asio::buffer(&bin_chunk2[0], bytes_to_receive);
+	boost::asio::async_read(m_socket, buf,boost::bind(&DbConnection::handle_read_binaries_parts_async, shared_from_this(),
+	 boost::asio::placeholders::error,0, idPckt, boost::asio::placeholders::bytes_transferred));
+	}
+	*/
+	if(bytes_to_receive) {
+	  bin_chunk2.resize(bytes_to_receive);
+	boost::asio::mutable_buffers_1 buf = boost::asio::buffer(&bin_chunk2[0], bytes_to_receive);
+	boost::asio::async_read(m_socket, buf,boost::bind(&DbConnection::send_proto_confirmation, shared_from_this(),
+	idPckt));
+	}
+      }
+     /* 
+      if(bytes_to_receive == 0) {
+	std::cout<<"Binary chunk dropped"<<std::endl;
+	send_proto_confirmation( idPckt);
+      }
+      */
+    }
+    else
+    {
+      std::cerr<<"ERROR!!! handle_read_binaries_parts_async "<<std::endl;
+      std::cout<<"Error = "<<error.message();
+      std::cerr<<"ERROR!!! handle_read_binaries_parts_async "<<std::endl;
+      //delete this; // BUGFIX - i don't know need delete it or not!
+    }
+  }
+ 
+    
     void handle_read_proto(const boost::system::error_code& error)
     {
         DEBUG && (std::cerr << "handle read proto " << error << '\n');
@@ -109,24 +196,31 @@ private:
 	      std::cout<<"Parse NOT OK"<<std::endl;
 	    
 	    
-            //handle_request(); 
 	    if(currentPcktHeaderInfo.binarySize) {
+	      //TODO - Read binary blob by parts ( 1024 ).
 	      std::cout<<"Read binary chunk"<<std::endl;
+	      /*
 	      std::vector<int8_t> bin_chunk;
 	      bin_chunk.resize(currentPcktHeaderInfo.binarySize);
 	      boost::asio::async_read(m_socket, boost::asio::buffer(bin_chunk),
                 boost::bind(&DbConnection::handle_read_binary, shared_from_this(),
                     boost::asio::placeholders::error, infoPckt2->id()));
+                    */
+	       ///*
+	      boost::system::error_code ec2;
+	      //handle_read_binaries_parts(ec2, currentPcktHeaderInfo.binarySize ,infoPckt2->id(), 0 );
+	      handle_read_binaries_parts_async(ec2, currentPcktHeaderInfo.binarySize ,infoPckt2->id(), 0 );
+	      //*/
 	      
-	      //start_read_header();
 	    }
 	    else {
 	      send_proto_confirmation( infoPckt2->id());
-	      //start_read_header();
 	    }
         }
         else
-	    std::cout<<"ERROR before Parse Proto "<<std::endl;
+	    std::cerr<<"ERROR before Parse Proto "<<std::endl;
+	    std::cout<<"Error = "<<error.message()<<std::endl;
+	    std::cerr<<"ERROR before Parse Proto "<<std::endl;
     } 
 
     // Called when enough data was read into m_readbuf for a complete request
@@ -154,6 +248,7 @@ private:
       data_buffer confirmBuf;
       PackedMessage<Rdmp::InfoPacket> confirmPckt(boost::shared_ptr<Rdmp::InfoPacket>(new Rdmp::InfoPacket()));
       auto packResult = confirmPckt.packConfirm(confirmBuf,idPckt);
+      std::cout<<" NOW wikk be crash "<<std::endl;
       auto result = boost::asio::write(m_socket, boost::asio::buffer(confirmBuf));
       std::cout<<"Result of sending = "<<result<<std::endl;
       start_read_header();
