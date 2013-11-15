@@ -2,8 +2,11 @@
 
 #include <cstdlib>
 #include <cstring>
+#include <string>
 #include <iostream>
+#include <fstream>
 #include <vector>
+#include <cerrno>
 #include <boost/asio.hpp>
 #include "InfoPacket.pb.h"
 #include "packedmessage.h"
@@ -13,6 +16,24 @@ enum { max_length = 1024 };
 
      
 
+
+
+
+std::string get_file_contents(const char *filename)
+{
+  std::ifstream in(filename, std::ios::in | std::ios::binary);
+  if (in)
+  {
+    std::string contents;
+    in.seekg(0, std::ios::end);
+    contents.resize(in.tellg());
+    in.seekg(0, std::ios::beg);
+    in.read(&contents[0], contents.size());
+    in.close();
+    return(contents);
+  }
+  throw(errno);
+}
 
 
 int main(int argc, char* argv[])
@@ -50,6 +71,10 @@ int main(int argc, char* argv[])
     std::cout << "Enter version of protocol"<<std::endl;
     std::cin>>protoVersion;
     
+    
+    std::string string_with_photo = get_file_contents("blob_send.jpeg");
+    sizeOfBlob = string_with_photo.size();
+    
     data_buffer buf2;
     
     PackedMessage<Rdmp::InfoPacket> m_packed_request(boost::shared_ptr<Rdmp::InfoPacket>(new Rdmp::InfoPacket()));
@@ -72,16 +97,26 @@ int main(int argc, char* argv[])
 	std::cout<<"buf2 - "<<i<<" = "<< static_cast<unsigned>(buf2[i])<<std::endl;
       }
      */ 
+   /*
      if(sizeOfBlob) {
        std::cout<<"Send BLOB with size = "<<sizeOfBlob<<std::endl;
        char * blobData = new char[sizeOfBlob];
        memset(blobData,'q',sizeOfBlob);
        boost::system::error_code ec;
-       size_t sendedLength = boost::asio::write(s, boost::asio::buffer(blobData, sizeOfBlob),
-						boost::asio::transfer_all(), ec);
-      std::cout<<"BLOB data sended =  "<<sendedLength<<std::endl;
-       
+       size_t sendedLength = boost::asio::write(s, boost::asio::buffer(blobData, sizeOfBlob), boost::asio::transfer_all(), ec);
+       std::cout<<"BLOB data sended =  "<<sendedLength<<std::endl;
      }
+     */
+    // New BLOB sending 
+    if(sizeOfBlob) {
+       std::cout<<"Send BLOB with size = "<<sizeOfBlob<<std::endl;
+       //char * blobData = string_with_photo.c_str(); 
+       //memset(blobData,'q',sizeOfBlob);
+       boost::system::error_code ec;
+       size_t sendedLength = boost::asio::write(s, boost::asio::buffer(string_with_photo.c_str(), sizeOfBlob), boost::asio::transfer_all(), ec);
+       std::cout<<"BLOB data sended =  "<<sendedLength<<std::endl;
+     } 
+     
     // Second call of writing - working too :)
     //boost::asio::write(s, boost::asio::buffer(buf2,ALL_HEADER_SIZE + msg_size));
     

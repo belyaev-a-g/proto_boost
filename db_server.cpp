@@ -105,7 +105,7 @@ private:
       if(ptrVec != nullptr) {
 	//TODO Save info to file - initial variant
 	std::fstream fs;
-	fs.open ("test.txt", std::fstream::in | std::fstream::out | std::fstream::app);
+	fs.open ("blob_received.jpeg", std::fstream::in | std::fstream::out | std::fstream::app);
 	//fs << "Write next portion of info ";
 	for(auto i: *ptrVec)
 	  fs<<i;
