@@ -95,26 +95,32 @@ private:
  
    
   void handle_read_binaries_parts_async(const boost::system::error_code& error,
-      uint32_t bytes_to_receive, uint32_t idPckt , uint32_t bytes_transferred, std::vector<uint8_t> * ptrVec)
+      uint32_t bytes_to_receive, uint32_t idPckt , uint32_t bytes_transferred, data_buffer * ptrVec)
   {
     if (!error)
     {
       std::cout<<"handle_read_binaries_parts_async"<<std::endl;
       std::cout<<"Обработчик сессии - bytes_to_receive = "<<bytes_to_receive<<std::endl;
+      if(ptrVec != nullptr) {
+	//TODO Save info to file
+      }
+      delete ptrVec; 
      
-     delete ptrVec; 
-     
-      std::vector<uint8_t> * ptrVector;
-      ptrVector = new std::vector<uint8_t>;
+      data_buffer * ptrVector;
+      ptrVector = new data_buffer;
       if(bytes_to_receive >= 1024 ) {
       ptrVector->resize(1024);
 	boost::asio::async_read(m_socket, boost::asio::buffer(*ptrVector,1024),boost::bind(&DbConnection::handle_read_binaries_parts_async, shared_from_this(),
 	 boost::asio::placeholders::error,bytes_to_receive - 1024, idPckt, boost::asio::placeholders::bytes_transferred, ptrVector));
       }
       else {
-	ptrVector->resize(bytes_to_receive);
-	boost::asio::async_read(m_socket,boost::asio::buffer(*ptrVector,bytes_to_receive),boost::bind(&DbConnection::send_proto_confirmation, shared_from_this(),
-	idPckt));
+	if(bytes_to_receive) {
+	  ptrVector->resize(bytes_to_receive);
+	  boost::asio::async_read(m_socket, boost::asio::buffer(*ptrVector,bytes_to_receive),boost::bind(&DbConnection::handle_read_binaries_parts_async, shared_from_this(),
+	  boost::asio::placeholders::error,0, idPckt, boost::asio::placeholders::bytes_transferred, ptrVector));
+	}
+	else
+	  send_proto_confirmation(idPckt);
       }
     }
     else
@@ -146,22 +152,11 @@ private:
 	    
 	    
 	    if(currentPcktHeaderInfo.binarySize) {
-	      //TODO - Read binary blob by parts ( 1024 ).
 	      std::cout<<"Read binary chunk"<<std::endl;
-	      /*
-	      std::vector<int8_t> bin_chunk;
-	      bin_chunk.resize(currentPcktHeaderInfo.binarySize);
-	      boost::asio::async_read(m_socket, boost::asio::buffer(bin_chunk),
-                boost::bind(&DbConnection::handle_read_binary, shared_from_this(),
-                    boost::asio::placeholders::error, infoPckt2->id()));
-                    */
-	       ///*
 	      boost::system::error_code ec2;
-	      std::vector<uint8_t> * ptrVector2;
-	      ptrVector2 = new std::vector<uint8_t>;
+	      data_buffer * ptrVector2;
+	      ptrVector2 = nullptr;
 	      handle_read_binaries_parts_async(ec2, currentPcktHeaderInfo.binarySize ,infoPckt2->id(), 0, ptrVector2 );
-	      //*/
-	      
 	    }
 	    else {
 	      send_proto_confirmation( infoPckt2->id());
@@ -198,7 +193,6 @@ private:
       data_buffer confirmBuf;
       PackedMessage<Rdmp::InfoPacket> confirmPckt(boost::shared_ptr<Rdmp::InfoPacket>(new Rdmp::InfoPacket()));
       auto packResult = confirmPckt.packConfirm(confirmBuf,idPckt);
-      std::cout<<" NOW wikk be crash "<<std::endl;
       auto result = boost::asio::write(m_socket, boost::asio::buffer(confirmBuf));
       std::cout<<"Result of sending = "<<result<<std::endl;
       start_read_header();
