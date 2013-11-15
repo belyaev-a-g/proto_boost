@@ -5,6 +5,7 @@
 #include "packedmessage.h"
 #include "InfoPacket.pb.h"
 #include <cassert>
+#include <fstream>
 #include <iostream>
 #include <map>
 #include <string>
@@ -102,7 +103,13 @@ private:
       std::cout<<"handle_read_binaries_parts_async"<<std::endl;
       std::cout<<"Обработчик сессии - bytes_to_receive = "<<bytes_to_receive<<std::endl;
       if(ptrVec != nullptr) {
-	//TODO Save info to file
+	//TODO Save info to file - initial variant
+	std::fstream fs;
+	fs.open ("test.txt", std::fstream::in | std::fstream::out | std::fstream::app);
+	//fs << "Write next portion of info ";
+	for(auto i: *ptrVec)
+	  fs<<i;
+	fs.close();
       }
       delete ptrVec; 
      
