@@ -91,82 +91,31 @@ private:
       send_proto_confirmation( idPckt);
     }
     
-  void handle_read_binaries_parts(const boost::system::error_code& error,
-      uint32_t bytes_to_receive, uint32_t idPckt , uint32_t bytes_transferred)
-  {
-    if (!error)
-    {
-      std::cout<<"handle_read_binaries_parts"<<std::endl;
-      std::cout<<"Обработчик сессии - bytes_to_receive = "<<bytes_to_receive<<std::endl;
-      
-      data_buffer bin_chunk2;
-      //FIXME - magic number
-      if(bytes_to_receive >= 1024 ) {
-	m_socket.async_read_some(boost::asio::buffer(bin_chunk2, 1024),
-	 boost::bind(&DbConnection::handle_read_binaries_parts, shared_from_this(),
-	 boost::asio::placeholders::error,bytes_to_receive - 1024, idPckt, boost::asio::placeholders::bytes_transferred));
-      }
-      else {
-	if(bytes_to_receive) {
-	  m_socket.async_read_some(boost::asio::buffer(bin_chunk2, bytes_to_receive),
-	 boost::bind(&DbConnection::handle_read_binaries_parts, shared_from_this(),
-	 boost::asio::placeholders::error,0, idPckt, boost::asio::placeholders::bytes_transferred));
-	}
-      }
-      
-      if(bytes_to_receive == 0) {
-	std::cout<<"Binary chunk dropped"<<std::endl;
-	send_proto_confirmation( idPckt);
-      }
-    }
-    else
-    {
-      std::cerr<<"ERROR!!! handle_read_binaries_parts "<<std::endl;
-      std::cout<<"Error = "<<error.message();
-      std::cerr<<"ERROR!!! handle_read_binaries_parts "<<std::endl;
-      //delete this; // BUGFIX - i don't know need delete it or not!
-    }
-  }
+  
  
    
   void handle_read_binaries_parts_async(const boost::system::error_code& error,
-      uint32_t bytes_to_receive, uint32_t idPckt , uint32_t bytes_transferred)
+      uint32_t bytes_to_receive, uint32_t idPckt , uint32_t bytes_transferred, std::vector<uint8_t> * ptrVec)
   {
     if (!error)
     {
       std::cout<<"handle_read_binaries_parts_async"<<std::endl;
       std::cout<<"Обработчик сессии - bytes_to_receive = "<<bytes_to_receive<<std::endl;
-      
-      data_buffer bin_chunk2(1024);
-      //bin_chunk2.resize(1024);
-      //FIXME - magic number
+     
+     delete ptrVec; 
+     
+      std::vector<uint8_t> * ptrVector;
+      ptrVector = new std::vector<uint8_t>;
       if(bytes_to_receive >= 1024 ) {
-	boost::asio::mutable_buffers_1 buf = boost::asio::buffer(&bin_chunk2[0], 1024);
-	boost::asio::async_read(m_socket, buf,boost::bind(&DbConnection::handle_read_binaries_parts_async, shared_from_this(),
-	 boost::asio::placeholders::error,bytes_to_receive - 1024, idPckt, boost::asio::placeholders::bytes_transferred));
+      ptrVector->resize(1024);
+	boost::asio::async_read(m_socket, boost::asio::buffer(*ptrVector,1024),boost::bind(&DbConnection::handle_read_binaries_parts_async, shared_from_this(),
+	 boost::asio::placeholders::error,bytes_to_receive - 1024, idPckt, boost::asio::placeholders::bytes_transferred, ptrVector));
       }
-      else {	
-	/*
-	if(bytes_to_receive) {
-	  bin_chunk2.resize(bytes_to_receive);
-	boost::asio::mutable_buffers_1 buf = boost::asio::buffer(&bin_chunk2[0], bytes_to_receive);
-	boost::asio::async_read(m_socket, buf,boost::bind(&DbConnection::handle_read_binaries_parts_async, shared_from_this(),
-	 boost::asio::placeholders::error,0, idPckt, boost::asio::placeholders::bytes_transferred));
-	}
-	*/
-	if(bytes_to_receive) {
-	  bin_chunk2.resize(bytes_to_receive);
-	boost::asio::mutable_buffers_1 buf = boost::asio::buffer(&bin_chunk2[0], bytes_to_receive);
-	boost::asio::async_read(m_socket, buf,boost::bind(&DbConnection::send_proto_confirmation, shared_from_this(),
+      else {
+	ptrVector->resize(bytes_to_receive);
+	boost::asio::async_read(m_socket,boost::asio::buffer(*ptrVector,bytes_to_receive),boost::bind(&DbConnection::send_proto_confirmation, shared_from_this(),
 	idPckt));
-	}
       }
-     /* 
-      if(bytes_to_receive == 0) {
-	std::cout<<"Binary chunk dropped"<<std::endl;
-	send_proto_confirmation( idPckt);
-      }
-      */
     }
     else
     {
@@ -208,8 +157,9 @@ private:
                     */
 	       ///*
 	      boost::system::error_code ec2;
-	      //handle_read_binaries_parts(ec2, currentPcktHeaderInfo.binarySize ,infoPckt2->id(), 0 );
-	      handle_read_binaries_parts_async(ec2, currentPcktHeaderInfo.binarySize ,infoPckt2->id(), 0 );
+	      std::vector<uint8_t> * ptrVector2;
+	      ptrVector2 = new std::vector<uint8_t>;
+	      handle_read_binaries_parts_async(ec2, currentPcktHeaderInfo.binarySize ,infoPckt2->id(), 0, ptrVector2 );
 	      //*/
 	      
 	    }
